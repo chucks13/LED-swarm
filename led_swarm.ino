@@ -1,6 +1,8 @@
 #include <FastLED.h>
 #include <SPI.h>
 #include <NRFLite.h>
+#include <EEPROM.h>
+
 
 /*
   Radio    Arduino
@@ -20,11 +22,16 @@
 const static uint8_t RADIO_ID = 1;                  // Our radio's id.
 const static uint8_t PIN_RADIO_CE = 9;              // hardware pins
 const static uint8_t PIN_RADIO_CSN = 10;            // hardware pins
+const static uint8_t PIN_BRIGHTNESS_DOWN = 5;            // hardware pins
+const static uint8_t PIN_BRIGHTNESS_UP = 6;            // hardware pins
+
 
 #define SENDPERIOD 2000                             // broadcast period in milliseconds
 #define TAGID (('B'<<24)+('l'<<16)+('i'<<8)+'s')    // tag code is 'Blis'
 #define EFFECTFRAMECOUNT 600
 #define LEDPERIOD (1000 / 60)                       // how often we animate
+#define MIN_BRIGHTNESS 20
+#define MAX_BRIGHTNESS 255
 
 struct state
 {
@@ -47,6 +54,7 @@ RadioPacket current;                                // our animation stat must f
 bool radioAlive;                                    // true if radio booted up
 int timeToSend;                                     // how long till next send;
 int muteTimer;
+int brightness;
 
 // How many leds in your strip?
 int timeToDisplay;                                  // how long to update the display
@@ -69,12 +77,33 @@ uint32_t myRandom(int range)
 // used for initial seed
 int randomNonZero()
 {
-  while(true)
+  while (true)
   {
-    int v=random(65536);
-    if(v!=0)
+    int v = random(65536);
+    if (v != 0)
       return v;
   }
+}
+
+void setLevel(int level)
+{
+  if (level < MIN_BRIGHTNESS)
+    level = MIN_BRIGHTNESS;
+  if (level > MAX_BRIGHTNESS)
+    level = MAX_BRIGHTNESS;
+  brightness = level;
+  LEDS.setBrightness(brightness);
+}
+
+// assumed to be called at 60 fps
+void checkButtons()
+{
+    if (digitalRead(PIN_BRIGHTNESS_DOWN) == 0)
+      setLevel(brightness - 1);
+    else if (digitalRead(PIN_BRIGHTNESS_UP) == 0)
+      setLevel(brightness + 1);
+    else
+      EEPROM.update(0, brightness);   // eeprom.update only writes if the data is different
 }
 
 // initialize the animation
@@ -82,11 +111,15 @@ void setupLED()
 {
   Serial.println("resetting");
   LEDS.addLeds<WS2812, DATA_PIN, RGB>(leds, NUM_LEDS);
-  LEDS.setBrightness(84);
+  brightness=EEPROM.read(0);
+  setLevel(brightness);
   timeToDisplay = 0;
   current.data.m_z = randomNonZero();
   current.data.m_w = randomNonZero();
   current.data.frameCounter =  EFFECTFRAMECOUNT;
+  pinMode(PIN_BRIGHTNESS_DOWN, INPUT_PULLUP);
+  pinMode(PIN_BRIGHTNESS_UP, INPUT_PULLUP);
+
 }
 
 // initialize the radio code
@@ -193,6 +226,7 @@ void checkAnimation(int deltaTime) {
   timeToDisplay -= deltaTime;
   if (timeToDisplay <= 0)
   {
+    checkButtons();
     timeToDisplay += LEDPERIOD;
     if (current.data.frameCounter >= EFFECTFRAMECOUNT)
     {
@@ -208,6 +242,7 @@ void checkAnimation(int deltaTime) {
         drawRainbow(current.data.frameCounter);
         break;
     }
+    
     FastLED.show();
     current.data.frameCounter++;
   }
