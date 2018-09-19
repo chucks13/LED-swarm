@@ -1,0 +1,10 @@
+Add 2 pushbuttons for brightness control
+
+Save brightnes setting in flash
+
+Create schematics
+
+Make PC boards
+
+Make more effects
+

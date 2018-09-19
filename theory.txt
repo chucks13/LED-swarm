@@ -1,0 +1,42 @@
+LED swarm theory of operation
+
+Seemingly random effects are displayed on an LED strip.  When 2 or more are near each other, they will sync up and show the same thing. 
+
+Communication:
+
+Every 2 seconds, it sends a 32 byte packet to the radio.  nearby units will receive this packet.  The packet includes the current aniation state, and a random device ID.  When a unit receives a packet, one of the following will happen:
+
+My ID < received ID : I start doing what the packet says, and stop broadcasting for awhile. I am a slave
+
+My ID > received ID = I ignore this packet. I am probably the master.
+
+My ID == received ID : There is an ID collision, I pick a new random ID.
+
+Animation status:
+
+the animation state is kept in this structure and passed via the radio:
+
+struct state
+{
+  uint32_t frameCounter;      // frames since effect started
+  uint32_t m_w;               // random seed
+  uint32_t m_z;               // random seed
+  uint8_t effect;             // current effect being shown
+  uint8_t data[11];           // room for 11 more bytes, effect dependent
+};
+
+Despite appearances, the animations once started are deterministic.  It is important to adhear to the standards defined in the source code for all units to stay in sync.
+
+It is important that this deterministic process be maintained.  Anything that need to be in sync must use the myRandom() function, because it passes the current seed as part of the animaition state.  A local random, such as randomly placing sparkles that dont need to be in sync can use a local random number generator.  
+
+Effects run for 10 seconds, or 600 frames. At that time, a new animation is selected.
+
+Life cycle of an effect:
+
+Effects are a single function.  They draw to the leds[NUM_LEDS] array.  They are passed a single value, which is the frame counter.  This will be zero on the first call, so that the effect can initialize any variables. Remember all variables that need to be synced must be in the state structure.  An effect might not get the zero frame call, as it might start in the middle of an animation because it is being synced with another unit.  This is why all state variables must be in the state structure.  
+
+Included libraries:
+
+FastLED.h
+NRFLite.h
+
