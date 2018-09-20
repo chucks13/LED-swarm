@@ -44,4 +44,11 @@ FastLED.h
 NRFLite.h
 eeprom.h
 
+parts:
+arduino nano http://a.co/d/cFedko3 $37.99/10
+NRF24L01 http://a.co/d/3rhLgCT     $11.98/10
+usb cable http://a.co/d/jlx0EaH    $6.99/3
+circuit board 				?
+
+
 
