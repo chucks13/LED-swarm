@@ -98,12 +98,12 @@ void setLevel(int level)
 // assumed to be called at 60 fps
 void checkButtons()
 {
-    if (digitalRead(PIN_BRIGHTNESS_DOWN) == 0)
-      setLevel(brightness - 1);
-    else if (digitalRead(PIN_BRIGHTNESS_UP) == 0)
-      setLevel(brightness + 1);
-    else
-      EEPROM.update(0, brightness);   // eeprom.update only writes if the data is different
+  if (digitalRead(PIN_BRIGHTNESS_DOWN) == 0)
+    setLevel(brightness - 1);
+  else if (digitalRead(PIN_BRIGHTNESS_UP) == 0)
+    setLevel(brightness + 1);
+  else
+    EEPROM.update(0, brightness);   // eeprom.update only writes if the data is different
 }
 
 // initialize the animation
@@ -111,7 +111,7 @@ void setupLED()
 {
   Serial.println("resetting");
   LEDS.addLeds<WS2812, DATA_PIN, RGB>(leds, NUM_LEDS);
-  brightness=EEPROM.read(0);
+  brightness = EEPROM.read(0);
   setLevel(brightness);
   timeToDisplay = 0;
   current.data.m_z = randomNonZero();
@@ -230,7 +230,7 @@ void checkAnimation(int deltaTime) {
     timeToDisplay += LEDPERIOD;
     if (current.data.frameCounter >= EFFECTFRAMECOUNT)
     {
-      current.data.effect = myRandom(2);
+      current.data.effect = myRandom(3);
       current.data.frameCounter = 0;
     }
     switch (current.data.effect)
@@ -241,8 +241,11 @@ void checkAnimation(int deltaTime) {
       case 1:
         drawRainbow(current.data.frameCounter);
         break;
+      case 2:
+        drawSparkles(current.data.frameCounter);
+        break;
     }
-    
+
     FastLED.show();
     current.data.frameCounter++;
   }
@@ -272,3 +275,51 @@ void drawRainbow(int frameNumber)
     leds[i] = CHSV((color + ( i * pitch) + (frameNumber * aspeed)) & 255, 255, 255);
 
 }
+
+void fadeall(int scale) {
+  for (int i = 0; i < NUM_LEDS; i++) {
+    leds[i].nscale8(scale);
+  }
+}
+
+void drawSparkles(int frameNumber)
+{
+  if (frameNumber == 0)
+  {
+    current.data.data[0] = myRandom(255);   // color
+    current.data.data[1] = myRandom(4);     // type
+    current.data.data[2] = ( myRandom(4) * 50) + 100; // fade
+  }
+  int color = current.data.data[0];
+  int type = current.data.data[1];
+  int fade = current.data.data[2];
+  fadeall(fade);
+  for (int i = 0; i < 50; i++)
+  {
+    if (random(256) < 20)
+    {
+      int x = random(300);
+      if (x < NUM_LEDS)
+      {
+        CRGB c;
+        switch (type)
+        {
+          case 0:
+            c = CRGB(255, 255, 255); // white
+            break;
+          case 1:
+            c = CHSV(color, 255, 255); // white            // constant color
+            break;
+          case 2:
+            c = CHSV(random(255), 255, 255); // multi;
+            break;
+          case 3:
+            c = CHSV(frameNumber + x, 255, 255); // rainbow
+            break;
+        }
+        leds[x] = c;
+      }
+    }
+  }
+}
+

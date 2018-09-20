@@ -39,4 +39,6 @@ Included libraries:
 
 FastLED.h
 NRFLite.h
+eeprom.h
+
 
