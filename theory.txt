@@ -33,7 +33,10 @@ Effects run for 10 seconds, or 600 frames. At that time, a new animation is sele
 
 Life cycle of an effect:
 
-Effects are a single function.  They draw to the leds[NUM_LEDS] array.  They are passed a single value, which is the frame counter.  This will be zero on the first call, so that the effect can initialize any variables. Remember all variables that need to be synced must be in the state structure.  An effect might not get the zero frame call, as it might start in the middle of an animation because it is being synced with another unit.  This is why all state variables must be in the state structure.  
+Effects are a single function.  They draw to the leds[NUM_LEDS] array.  They are passed a single value, which is the frame counter.  This will be zero on the first call, so that the effect can initialize any variables. Remember all variables that need to be synced must be in the state structure.  An effect might not get the zero frame call, as it might start in the middle of an animation because it is being synced with another unit.  This is why all state variables must be in the state structure. 
+
+customizations:
+NUM_LEDS This should be the length of your string.  Make you effects work with other lengths, assume a max of 300.
 
 Included libraries:
 
