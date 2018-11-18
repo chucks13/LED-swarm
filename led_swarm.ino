@@ -3,7 +3,7 @@
 #include <NRFLite.h>
 #include <EEPROM.h>
 
-
+// board arduino nano
 /*
   Radio    Arduino
   CE    -> 9
@@ -230,7 +230,7 @@ void checkAnimation(int deltaTime) {
     timeToDisplay += LEDPERIOD;
     if (current.data.frameCounter >= EFFECTFRAMECOUNT)
     {
-      current.data.effect = myRandom(3);
+      current.data.effect = myRandom(4);
       current.data.frameCounter = 0;
     }
     switch (current.data.effect)
@@ -243,6 +243,9 @@ void checkAnimation(int deltaTime) {
         break;
       case 2:
         drawSparkles(current.data.frameCounter);
+        break;
+      case 3:
+        drawNoise(current.data.frameCounter);
         break;
     }
 
@@ -274,6 +277,25 @@ void drawRainbow(int frameNumber)
   for (int i = 0; i < NUM_LEDS; i++)
     leds[i] = CHSV((color + ( i * pitch) + (frameNumber * aspeed)) & 255, 255, 255);
 
+}
+
+void drawNoise(int frameNumber)
+{
+  if (frameNumber == 0)
+  {
+    current.data.data[0] = myRandom(4)+2; // speed
+    current.data.data[1] = myRandom(255); // offset
+    current.data.data[2] = myRandom(6)+1; // scale
+  }
+  for (int i = 0; i < NUM_LEDS; i++)
+  {
+    float speed=current.data.data[0];
+    float offset=current.data.data[1];
+    float scale=current.data.data[2];
+    scale=scale*NUM_LEDS/144;           // scale to current display  (was designed for 144 
+    int p=inoise8((i*scale)+offset,frameNumber*speed);
+    leds[i] = CHSV(p, 255, 255);
+  }
 }
 
 void fadeall(int scale) {
