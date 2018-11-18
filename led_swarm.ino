@@ -17,7 +17,7 @@
 
 */
 
-#define NUM_LEDS 144                                // how long our strip is
+#define NUM_LEDS 60                                // how long our strip is
 #define DATA_PIN 7                                  // 2811 data pin
 const static uint8_t RADIO_ID = 1;                  // Our radio's id.
 const static uint8_t PIN_RADIO_CE = 9;              // hardware pins
@@ -275,7 +275,10 @@ void drawRainbow(int frameNumber)
   int pitch = current.data.data[1] + 1;
   int aspeed = current.data.data[2] + 1;
   for (int i = 0; i < NUM_LEDS; i++)
-    leds[i] = CHSV((color + ( i * pitch) + (frameNumber * aspeed)) & 255, 255, 255);
+  {
+    int x = (i * NUM_LEDS) / 144;         // was originally scaled for 144
+    leds[i] = CHSV((color + ( x * pitch) + (frameNumber * aspeed)) & 255, 255, 255);
+  }
 
 }
 
@@ -296,7 +299,7 @@ void drawNoise(int frameNumber)
   int c1 = current.data.data[3];
   int c2 = current.data.data[4];
   int style = current.data.data[5];
-  scale = scale * NUM_LEDS / 144;     // scale to current display  (was designed for 144
+  scale = (scale * NUM_LEDS) / 144;     // scale to current display  (was designed for 144
   for (int i = 0; i < NUM_LEDS; i++)
   {
     int p = inoise8((i * scale) + offset, frameNumber * speed);
@@ -308,11 +311,11 @@ void drawNoise(int frameNumber)
       case 1:
         if (p > 127)
         {
-          leds[i] = CHSV(c1, 255, (p - 128) * 2);
+          leds[i] = CHSV(c1, 255, (p - 128) * 6); // times 6 to minimize black
         }
         else
         {
-          leds[i] = CHSV(c2, 255, (127 - p) * 2);
+          leds[i] = CHSV(c2, 255, (127 - p) * 6);
         }
         break;
     }
