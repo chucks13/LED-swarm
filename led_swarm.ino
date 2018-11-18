@@ -283,18 +283,39 @@ void drawNoise(int frameNumber)
 {
   if (frameNumber == 0)
   {
-    current.data.data[0] = myRandom(4)+2; // speed
+    current.data.data[0] = myRandom(4) + 2; // speed
     current.data.data[1] = myRandom(255); // offset
-    current.data.data[2] = myRandom(6)+1; // scale
+    current.data.data[2] = myRandom(3) + 4; // scale
+    current.data.data[3] = myRandom(255); // c1
+    current.data.data[4] = myRandom(255); // c2
+    current.data.data[5] = myRandom(2); // style
   }
+  float speed = current.data.data[0];
+  float offset = current.data.data[1];
+  float scale = current.data.data[2];
+  int c1 = current.data.data[3];
+  int c2 = current.data.data[4];
+  int style = current.data.data[5];
+  scale = scale * NUM_LEDS / 144;     // scale to current display  (was designed for 144
   for (int i = 0; i < NUM_LEDS; i++)
   {
-    float speed=current.data.data[0];
-    float offset=current.data.data[1];
-    float scale=current.data.data[2];
-    scale=scale*NUM_LEDS/144;           // scale to current display  (was designed for 144 
-    int p=inoise8((i*scale)+offset,frameNumber*speed);
-    leds[i] = CHSV(p, 255, 255);
+    int p = inoise8((i * scale) + offset, frameNumber * speed);
+    switch (style)
+    {
+      case 0:
+        leds[i] = CHSV(p, 255, 255);
+        break;
+      case 1:
+        if (p > 127)
+        {
+          leds[i] = CHSV(c1, 255, (p - 128) * 2);
+        }
+        else
+        {
+          leds[i] = CHSV(c2, 255, (127 - p) * 2);
+        }
+        break;
+    }
   }
 }
 
