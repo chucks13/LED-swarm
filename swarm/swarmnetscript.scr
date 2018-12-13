@@ -1,0 +1,73 @@
+# NetScript
+# 
+# Exported from swarm.sch at 12/12/2018 9:40 PM
+# 
+# EAGLE Version 9.1.3 Copyright (c) 1988-2018 Autodesk, Inc.
+# 
+Change Class 0;
+Signal 'GND'      'JP2'      '2' \
+                  'JP2'      '7' \
+                  'JP3'      '4' \
+                  'JP3'      '5' \
+                  'S1'       '3' \
+                  'S2'       '3' \
+                  'S3'       '3' \
+                  'U$1'      'GND' \
+                  ;
+Change Class 0;
+Signal 'N$1'      'JP3'      '3' \
+                  'U$1'      'D7' \
+                  ;
+Change Class 0;
+Signal 'N$2'      'JP2'      '6' \
+                  'U$1'      'A5' \
+                  ;
+Change Class 0;
+Signal 'N$3'      'S1'       '2' \
+                  'U$1'      'D6' \
+                  ;
+Change Class 0;
+Signal 'N$4'      'JP2'      '5' \
+                  'U$1'      'A4' \
+                  ;
+Change Class 0;
+Signal 'N$5'      'JP1'      '4' \
+                  'U$1'      'D13' \
+                  ;
+Change Class 0;
+Signal 'N$6'      'JP1'      '6' \
+                  'U$1'      'D9' \
+                  ;
+Change Class 0;
+Signal 'N$7'      'JP1'      '3' \
+                  'U$1'      'D11' \
+                  ;
+Change Class 0;
+Signal 'N$8'      'JP1'      '5' \
+                  'U$1'      'D10' \
+                  ;
+Change Class 0;
+Signal 'N$9'      'JP1'      '7' \
+                  'U$1'      '3.3V' \
+                  ;
+Change Class 0;
+Signal 'N$10'     'S2'       '2' \
+                  'U$1'      'D5' \
+                  ;
+Change Class 0;
+Signal 'N$11'     'S3'       '2' \
+                  'U$1'      'D4' \
+                  ;
+Change Class 0;
+Signal 'N$12'     'JP1'      '2' \
+                  'U$1'      'D12' \
+                  ;
+Change Class 0;
+Signal 'N$19'     'JP1'      '8' \
+                  ;
+Change Class 0;
+Signal 'VCC'      'JP2'      '8' \
+                  'JP3'      '1' \
+                  'JP3'      '2' \
+                  'U$1'      'RAW' \
+                  ;
