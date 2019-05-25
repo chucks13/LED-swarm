@@ -20,8 +20,8 @@
 
 */
 
-#define SUPERMASTER   // forces highest ID on boot
-#define SUPERSLAVE      // does not transmit
+//#define SUPERLEADER   // forces highest ID on boot
+//#define SUPERFOLLOWER      // does not transmit
 #define DEFAULTBRIGHTNESS 64
 //#define SHOWDEBUG
 
@@ -29,7 +29,7 @@
 //#define NANO150
 //#define NANO60
 //#define TEENSY144
-#define TEENSY150           // final swarm wand
+#define TEENSY150
 //#define NANO100APA102
 
 #ifdef NANO100APA102
@@ -115,10 +115,12 @@ const static uint8_t PIN_RADIO_CE = 9;              // hardware pins
 const static uint8_t PIN_RADIO_CSN = 10;            // hardware pins
 #endif
 
-#define SENDPERIOD 2000                             // broadcast period in milliseconds
+#define SENDPERIOD 2000000                             // broadcast period in microseconds
 #define MUTEPERIOD (SENDPERIOD * 3)
 #define TAGID 0x426C6973  // tag code is 'Blis'
-#define LEDPERIOD (1000 / 60)                       // how often we animate
+#define LEDPERIOD (1000000 / 60)                       // how often we animate
+#define BUTTONSHORTTIME 50000
+#define BUTTONLONGTIME 1000000
 #define MIN_BRIGHTNESS 20
 #define MAX_BRIGHTNESS 255
 
@@ -186,9 +188,9 @@ void checkButtons(int delta)
   {
     if (buttonState == BUTTONDOWN)
     {
-      if (buttonDownTime > 50)
+      if (buttonDownTime > BUTTONSHORTTIME)
         buttonEvent = BUTTONSHORT;
-      if (buttonDownTime > 1000)
+      if (buttonDownTime > BUTTONLONGTIME)
         buttonEvent = BUTTONLONG;
     }
     buttonState = BUTTONUP;
@@ -253,7 +255,7 @@ void setupRadio()
 {
 #ifdef USERADIO
   pinMode(14, INPUT_PULLUP);
-#ifdef SUPERMASTER          // super master has the highest ID
+#ifdef SUPERLEADER          // super LEADER has the highest ID
   putID( current , 65535);
 #else
   putID( current ,  random(65536));
@@ -278,7 +280,7 @@ void checkRadioReceive()
 {
 #ifdef USERADIO
   uint8_t incoming[sizeof(current)];
-#ifdef SUPERMASTER      // super master is always deaf  
+#ifdef SUPERLEADER      // super LEADER is always deaf  
   return;
 #endif
   // check for incoming data
@@ -296,7 +298,7 @@ void checkRadioReceive()
 
     uint16_t unitId = getID(incoming);
     uint16_t currentId = getID(current);
-    if (unitId < currentId)                       // it was lower rank than me slave, ignore it
+    if (unitId < currentId)                       // it was lower rank than me FOLLOWER, ignore it
       continue;
 
     if (unitId > currentId)                // it was higher rank than me, get the data
@@ -317,7 +319,7 @@ void checkRadioReceive()
 void checkRadioSend(int deltaTime)
 {
 #ifdef USERADIO
-#ifdef SUPERSLAVE   // superslave is always mute
+#ifdef SUPERFOLLOWER   // superFOLLOWER is always mute
   return;
 #endif
   if (muteTimer > 0)
@@ -371,7 +373,7 @@ void setup() {
   buttonState = BUTTONUP;
   buttonEvent = 0;
   timeToDisplay = 0;
-  lastTime = millis();
+  lastTime = micros();
 }
 
 void ShowRadio( uint8_t *state, CRGB *display, int size)
@@ -405,7 +407,7 @@ void showDebug()
     leds[i] = faded;
   faded.nscale8(240);
 
-  // looking for master/slave mode
+  // looking for LEADER/FOLLOWER mode
   for (int i = 5; i < 10; i++)
     leds[i] = (muteTimer > 0) ? CRGB(255, 255, 0) : CRGB(0, 0, 255);
 
@@ -416,7 +418,7 @@ void showDebug()
 
 void loop()
 {
-  unsigned long now = millis();
+  unsigned long now = micros();
   unsigned long delta = now - lastTime;
   lastTime = now;
   checkButtons(delta);
@@ -426,10 +428,10 @@ void loop()
     checkRadioSend(delta);
   }
   //    serviceMotion(leds, NUM_LEDS);
-  timeToDisplay -= delta;
-  while (timeToDisplay <= 0)
+  timeToDisplay += delta;
+  while (timeToDisplay > LEDPERIOD)
   {
-    timeToDisplay += LEDPERIOD;
+    timeToDisplay -= LEDPERIOD;
     if (buttonEvent == BUTTONSHORT)
     {
       buttonEvent = BUTTONONE;
@@ -447,11 +449,11 @@ void loop()
       case 1:
         ShowRadio( current, leds, NUM_LEDS);
         break;
-#ifdef USEACCEL        
+#ifdef USEACCEL
       case 2:
         DizzyGame( current, leds, NUM_LEDS);
         break;
-#endif        
+#endif
       default:
         program++;
         if (program >= 3)
@@ -459,9 +461,9 @@ void loop()
         break;
 
     }
-#ifdef SHOWDEBUG    
+#ifdef SHOWDEBUG
     showDebug();    // show some debug info on the display
-#endif    
+#endif
 
     FastLED.show();
   }
