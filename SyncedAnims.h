@@ -80,10 +80,10 @@ void syncedAnimeInit(uint8_t *state)
   putMW(state, randomNonZero());
   putMZ(state, randomNonZero());
   putCounter(state , EFFECTFRAMECOUNT);
-  putEffect(state,0);
+  putEffect(state, 0);
 }
 
-
+#ifndef STRONGMAN
 void drawSolid( uint8_t *state, CRGB *display, int size, int frameNumber)
 {
   if (frameNumber == 0)
@@ -199,6 +199,52 @@ void drawSparkles( uint8_t *state, CRGB *display, int size, int frameNumber)
   }
 }
 
+#endif
+
+void drawStrongman( uint8_t *state, CRGB *display, int size, int frameNumber)
+{
+  int level = getData(state, 0);
+  int high = getData(state, 1);
+  int hightime = getData(state, 2);
+  int highest = getData(state, 3);
+  if (level > high)
+  {
+    high = level;
+    hightime = 500;
+  }
+  if (level > highest)
+    highest = level;
+  if (hightime > 0)
+    hightime--;
+  if (hightime == 0)
+  {
+    high--;
+    if (high < level)
+      high = level;
+  }
+  for (int i = 0; i < size; i++)
+  {
+    int x = (i * 144) / size;         // was originally scaled for 144
+    if (x < level)
+      display[i] = CRGB(64, 0, 0);
+    else
+      display[i] = CRGB(0, 0, 0);
+  }
+  display[(high * size) / 144] = CRGB(255, 255, 0);
+  display[(highest * size) / 144] = CRGB(0, 255, 0);
+  putData(state, 1, high);
+  putData(state, 2, hightime);
+  putData(state, 3, highest);
+
+}
+void drawBlank( uint8_t *state, CRGB *display, int size, int frameNumber)
+{
+  for (int i = 0; i < size; i++)
+  {
+    display[i] = CRGB(0, 0, 0);
+  }
+}
+
 void SyncedAnims( uint8_t *state, CRGB *display, int size) {
   uint32_t frameCounter = getCounter(state);
   int effect = getEffect(state);
@@ -212,6 +258,7 @@ void SyncedAnims( uint8_t *state, CRGB *display, int size) {
   }
   switch (effect)
   {
+#ifndef STRONGMAN
     case 0:
       drawSolid(state, display, size, frameCounter);
       break;
@@ -224,9 +271,18 @@ void SyncedAnims( uint8_t *state, CRGB *display, int size) {
     case 3:
       drawNoise(state, display, size, frameCounter);
       break;
+#endif
+    case 10:
+      drawStrongman(state, display, size, frameCounter);
+      break;
+    default:
+      drawBlank(state, display, size, frameCounter);
+      break;
   }
   putCounter(state, frameCounter);
 }
+
+
 
 
 

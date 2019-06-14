@@ -2,8 +2,6 @@
 #include <SPI.h>
 #include <NRFLite.h>
 #include <EEPROM.h>
-#include <MPU6050_tockn.h>
-#include <Wire.h>
 
 
 // board arduino nano
@@ -24,6 +22,7 @@
 //#define SUPERFOLLOWER      // does not transmit
 #define DEFAULTBRIGHTNESS 64
 //#define SHOWDEBUG
+//#define BATTERYTEST
 
 // some build configurations I tested
 //#define NANO150
@@ -31,6 +30,7 @@
 //#define TEENSY144
 #define TEENSY150
 //#define NANO100APA102
+//#define STRONGMAN
 
 #ifdef NANO100APA102
 #define NANO
@@ -83,8 +83,29 @@
 //#define SNOOZE
 #endif
 
+#ifdef STRONGMAN
+#ifndef SUPERLEADER
+#define SUPERLEADER
+#endif
+#define USEPRESSURE
+#define USERADIO
+#define NANO
+#define  RGBORDER RGB
+#define NUM_LEDS 150                                // how long our strip is
+#define DATA_PIN 7                                  // 2811 data pin
+#define CHIP WS2812
+#endif
+
 #ifdef USEACCEL
+#include <Wire.h>
+#include <MPU6050_tockn.h>
 MPU6050 mpu6050(Wire);
+#endif
+
+#ifdef USEPRESSURE
+#include <Wire.h>
+#include "Adafruit_MPRLS.h"
+Adafruit_MPRLS mpr = Adafruit_MPRLS(-1, -1);
 #endif
 
 
@@ -106,14 +127,8 @@ const char BUTTONSHORT = 1;
 const char BUTTONLONG = 2;
 
 const static uint8_t RADIO_ID = 1;                  // Our radio's id.
-#ifdef TEENSY
 const static uint8_t PIN_RADIO_CE = 9;              // hardware pins
 const static uint8_t PIN_RADIO_CSN = 10;            // hardware pins
-#endif
-#ifdef NANO
-const static uint8_t PIN_RADIO_CE = 9;              // hardware pins
-const static uint8_t PIN_RADIO_CSN = 10;            // hardware pins
-#endif
 
 #define SENDPERIOD 2000000                             // broadcast period in microseconds
 #define MUTEPERIOD (SENDPERIOD * 3)
@@ -168,6 +183,28 @@ void fill(CRGB color)
   for (int i = 0; i < NUM_LEDS; i++)
   {
     leds[i] = color;
+  }
+}
+
+//------------------------------------------------------------------------
+void batteryTester(int delta)
+{
+  static unsigned long runtime = 0;
+  static long ticks = 0;
+  if (buttonEvent == BUTTONSHORT)
+  {
+    runtime = 0;
+    ticks = 0;
+    buttonEvent = 0;
+  }
+  runtime += delta;
+  if ( radioEvent == 1)
+  {
+    radioEvent = 0;
+    ticks++;
+    Serial.print(runtime);
+    Serial.print(",");
+    Serial.println(ticks);
   }
 }
 
@@ -273,16 +310,14 @@ void setupRadio()
     //   Serial.println("radio ok");
   }
   timeToSend = 0;
-  muteTimer = 0;
+  muteTimer = MUTEPERIOD;       // lets listen before we start talking
 #endif
 }
 void checkRadioReceive()
 {
 #ifdef USERADIO
+#ifndef SUPERLEADER      // super LEADER is always deaf  
   uint8_t incoming[sizeof(current)];
-#ifdef SUPERLEADER      // super LEADER is always deaf  
-  return;
-#endif
   // check for incoming data
   while (_radio.hasData())
   {
@@ -292,16 +327,17 @@ void checkRadioReceive()
       continue;
 
     uint32_t tag = getTag(incoming );
-    //    Serial.println("got");
+    Serial.println("got");
     if (tag != TAGID)                      // is it our packet type?
       continue;
 
     uint16_t unitId = getID(incoming);
     uint16_t currentId = getID(current);
+#ifndef SUPERFOLLOWER
     if (unitId < currentId)                       // it was lower rank than me FOLLOWER, ignore it
       continue;
-
     if (unitId > currentId)                // it was higher rank than me, get the data
+#endif
     {
       radioEvent = 1;
 
@@ -313,6 +349,7 @@ void checkRadioReceive()
 
     putID(current, random(65536));        // we had the same ID, pick a new one
   }
+#endif
 #endif
 }
 
@@ -340,7 +377,7 @@ void checkRadioSend(int deltaTime)
 
   if ( _radio.send(RADIO_ID, &current, sizeof(current), NRFLite::NO_ACK))
   {
-    //    Serial.println("sent");
+    Serial.println("sent");
     radioEvent = 2;                             // for display debug
   }
   else
@@ -357,11 +394,19 @@ void setup() {
 #ifdef SNOOZE
   waitSnooze(SLEEPADDRESS, PIN_PUSHBUTTON);
 #endif
+  Serial.begin(115200);
+  Serial.println("boot");
 #ifdef USEACCEL
   Wire.begin();
   mpu6050.begin();
 #endif
-  Serial.begin(115200);
+#ifdef USEPRESSURE
+  Serial.println("checking pressure");
+  if (! mpr.begin())
+    Serial.println("Failed to communicate with MPRLS sensor, check wiring?");
+  else
+    Serial.println("ok");
+#endif
   //  Serial.println("resetting");
   //  pinMode(4, INPUT_PULLUP);
   //  pinMode(5, INPUT_PULLUP);
@@ -376,24 +421,9 @@ void setup() {
   lastTime = micros();
 }
 
-void ShowRadio( uint8_t *state, CRGB *display, int size)
+static bool gotone = false;
+void ShowRadio(  CRGB *display)
 {
-  fadeall(display, size, 240);
-  //  if (radioEvent > 0)
-  //    Serial.println(radioEvent);
-  if ( radioEvent == 1)
-    display[0] = CRGB(50, 0, 0);
-  if ( radioEvent == 2)
-    display[0] = CRGB(0, 10, 0);
-  radioEvent = 0;
-
-}
-
-bool gotone = false;
-
-void showDebug()
-{
-  // showing transmit/receive events
   static CRGB faded = CRGB(0, 0, 0);
   if ( radioEvent == 1)
   {
@@ -404,9 +434,47 @@ void showDebug()
     faded = CRGB(0, 50, 0);
   radioEvent = 0;
   for (int i = 0; i < 5; i++)
-    leds[i] = faded;
+    display[i] = faded;
   faded.nscale8(240);
 
+}
+
+#ifdef USEPRESSURE
+int lastpressuretime = 0;
+int strongmantimout = 0;
+void strongmanUpdate(int delta)
+{
+  lastpressuretime += delta;
+  if (lastpressuretime > 10000)
+  {
+    if (strongmantimout > 0)
+      strongmantimout--;
+    lastpressuretime = 0;
+    float pressure_hPa = mpr.readPressure();
+    pressure_hPa -= 1000;
+    if (pressure_hPa < 0)
+      pressure_hPa = 0;
+    Serial.println(pressure_hPa);
+    if (pressure_hPa > 10)
+    {
+      strongmantimout = 100;
+    }
+    if (strongmantimout > 0)
+    {
+      putEffect(current, 10);              // force strongman
+      putCounter(current, 0);               // lock it to this effect
+      putData(current, 0, pressure_hPa);    // level
+      timeToSend = 1000;                    // we send a lot
+    }
+  }
+}
+#endif
+
+#ifdef SHOWDEBUG
+void showDebug()
+{
+  // showing transmit/receive events
+  ShowRadio(leds);
   // looking for LEADER/FOLLOWER mode
   for (int i = 5; i < 10; i++)
     leds[i] = (muteTimer > 0) ? CRGB(255, 255, 0) : CRGB(0, 0, 255);
@@ -415,13 +483,18 @@ void showDebug()
   for (int i = 10; i < 15; i++)
     leds[i] = gotone ? CRGB(0, 255, 255) : CRGB(255, 0, 0);
 }
+#endif
 
 void loop()
 {
   unsigned long now = micros();
   unsigned long delta = now - lastTime;
   lastTime = now;
+
   checkButtons(delta);
+#ifdef USEPRESSURE
+  strongmanUpdate(delta);
+#endif
   if (radioAlive)
   {
     checkRadioReceive();
@@ -432,12 +505,14 @@ void loop()
   while (timeToDisplay > LEDPERIOD)
   {
     timeToDisplay -= LEDPERIOD;
+#ifdef BATTERYTEST
+    batteryTester(delta);        // include to run radion battery test
+#else
     if (buttonEvent == BUTTONSHORT)
     {
       buttonEvent = BUTTONONE;
       program++;
     }
-
 #ifdef USEACCEL
     mpu6050.update();       // update the accelerometer
 #endif
@@ -445,9 +520,13 @@ void loop()
     {
       case 0:
         SyncedAnims( current, leds, NUM_LEDS);
+#ifdef SHOWDEBUG
+        showDebug();    // show some debug info on the display
+#endif
         break;
       case 1:
-        ShowRadio( current, leds, NUM_LEDS);
+        SyncedAnims( current, leds, NUM_LEDS);
+        ShowRadio(  leds);
         break;
 #ifdef USEACCEL
       case 2:
@@ -461,10 +540,7 @@ void loop()
         break;
 
     }
-#ifdef SHOWDEBUG
-    showDebug();    // show some debug info on the display
 #endif
-
     FastLED.show();
   }
 }
