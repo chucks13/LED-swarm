@@ -1,5 +1,5 @@
 #define EFFECTFRAMECOUNT 600
-
+#define STRONGMANEFFECT 200
 #define EFFECTCOUNT   4
 
 uint32_t get32(uint8_t *data)
@@ -272,7 +272,7 @@ void SyncedAnims( uint8_t *state, CRGB *display, int size) {
       drawNoise(state, display, size, frameCounter);
       break;
 #endif
-    case 10:
+    case STRONGMANEFFECT:
       drawStrongman(state, display, size, frameCounter);
       break;
     default:

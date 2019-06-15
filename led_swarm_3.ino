@@ -144,8 +144,8 @@ NRFLite _radio;
 #endif
 uint8_t current[32];                                // anim state variables
 bool radioAlive = false;                            // true if radio booted up
-int timeToSend;                                     // how long till next send;
-int muteTimer;
+unsigned long timeToSend;                                     // how long till next send;
+unsigned long muteTimer;
 int brightness;
 int program = 0;                                    // which application is running in loop
 unsigned long lastTime ;                            // for calculation delta time
@@ -310,7 +310,7 @@ void setupRadio()
     //   Serial.println("radio ok");
   }
   timeToSend = 0;
-  muteTimer = MUTEPERIOD;       // lets listen before we start talking
+  muteTimer = 0;       // lets listen before we start talking
 #endif
 }
 void checkRadioReceive()
@@ -343,7 +343,7 @@ void checkRadioReceive()
 
       // we dont copy the 6 byte header, or the 2 byte checksum
       memcpy(current + 6, incoming + 6, sizeof(current) - 8); // copy the incomming data into my data
-      muteTimer = MUTEPERIOD;              // im listening, so I keep quiet
+      muteTimer = 0;              // im listening, so I keep quiet
       continue;
     }
 
@@ -359,25 +359,24 @@ void checkRadioSend(int deltaTime)
 #ifdef SUPERFOLLOWER   // superFOLLOWER is always mute
   return;
 #endif
-  if (muteTimer > 0)
-    muteTimer -= deltaTime;
-
-  timeToSend -= deltaTime;
-  if (timeToSend > 0)
+  // check mute timer
+  if (muteTimer < MUTEPERIOD)
+  {
+    muteTimer += deltaTime;
     return;
-  timeToSend += SENDPERIOD;
-
-  if (muteTimer > 0)
+  }
+  // run periodic timer
+  timeToSend += deltaTime;
+  if (timeToSend < SENDPERIOD)
     return;
+  timeToSend = 0;
 
-  //  Serial.println("try send");
   unsigned long sum  = crc(current, 30);
   current[30] = sum & 255;
   current[31] = sum >> 8;
 
   if ( _radio.send(RADIO_ID, &current, sizeof(current), NRFLite::NO_ACK))
   {
-    Serial.println("sent");
     radioEvent = 2;                             // for display debug
   }
   else
@@ -401,11 +400,8 @@ void setup() {
   mpu6050.begin();
 #endif
 #ifdef USEPRESSURE
-  Serial.println("checking pressure");
-  if (! mpr.begin())
-    Serial.println("Failed to communicate with MPRLS sensor, check wiring?");
-  else
-    Serial.println("ok");
+  if (mpr.begin())
+    Serial.println("MPRLS sensor ok");
 #endif
   //  Serial.println("resetting");
   //  pinMode(4, INPUT_PULLUP);
@@ -445,27 +441,32 @@ int strongmantimout = 0;
 void strongmanUpdate(int delta)
 {
   lastpressuretime += delta;
-  if (lastpressuretime > 10000)
+  if (lastpressuretime > 10000)       // time to read the sensor
   {
-    if (strongmantimout > 0)
-      strongmantimout--;
     lastpressuretime = 0;
-    float pressure_hPa = mpr.readPressure();
-    pressure_hPa -= 1000;
-    if (pressure_hPa < 0)
+    if (strongmantimout > 0)          // run down the active timer
+    {
+      strongmantimout--;
+    }
+    float pressure_hPa = mpr.readPressure();    // read the pressure
+    pressure_hPa -= 1000;             // adjust for expected range
+    if (pressure_hPa < 0)             // rectify
       pressure_hPa = 0;
-    Serial.println(pressure_hPa);
-    if (pressure_hPa > 10)
+    if (pressure_hPa > 10)            // was there some activity?
     {
-      strongmantimout = 100;
+      strongmantimout = 100;          // reset the timeout
     }
-    if (strongmantimout > 0)
+    if (strongmantimout > 0)          // are we active?
     {
-      putEffect(current, 10);              // force strongman
-      putCounter(current, 0);               // lock it to this effect
-      putData(current, 0, pressure_hPa);    // level
-      timeToSend = 1000;                    // we send a lot
+      putEffect(current, STRONGMANEFFECT);              // force strongman effect
+      putCounter(current, 0);               // dont let this effect timeout
+      putData(current, 0, pressure_hPa);    // save the level
+      timeToSend = SENDPERIOD - 10000;       // we send again soon
+      muteTimer = MUTEPERIOD;
     }
+    else
+      muteTimer = 0;                  // we are mute if we arent active
+
   }
 }
 #endif
