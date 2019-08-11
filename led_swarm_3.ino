@@ -20,24 +20,26 @@
 
 //#define SUPERLEADER   // forces highest ID on boot
 //#define SUPERFOLLOWER      // does not transmit
-#define DEFAULTBRIGHTNESS 64
+#define DEFAULTBRIGHTNESS 64  // default is 64
 //#define SHOWDEBUG
 //#define BATTERYTEST
 
 // some build configurations I tested
 //#define NANO150
 //#define NANO60
+//#define TEENSY408
 //#define TEENSY144
 #define TEENSY150
 //#define NANO100APA102
 //#define STRONGMAN
+//#define TOWER
 
 #ifdef NANO100APA102
 #define NANO
 #define  RGBORDER BRG
 #define NUM_LEDS 100                                // how long our strip is
 #define DATA_PIN 7
-#define CLOCK_PIN 13
+#define CLOCK_PIN 5
 #define CHIP APA102
 #endif
 
@@ -72,12 +74,37 @@
 //#define SNOOZE
 #endif
 
+#ifdef TOWER
+#ifndef SUPERFOLLOWER
+#define SUPERFOLLOWER
+#endif
+#define TEENSY
+#define USERADIO
+#define USEACCEL
+#define  RGBORDER RGB
+#define NUM_LEDS 180                                // how long our strip is
+#define DATA_PIN 17                                  // 2811 data pin
+#define CHIP WS2812
+//#define SNOOZE
+#endif
+
 #ifdef TEENSY144
 #define TEENSY
 #define USERADIO
 #define USEACCEL
 #define  RGBORDER RGB
 #define NUM_LEDS 144                                // how long our strip is
+#define DATA_PIN 17                                  // 2811 data pin
+#define CHIP WS2812
+//#define SNOOZE
+#endif
+
+#ifdef TEENSY408
+#define TEENSY
+#define USERADIO
+#define USEACCEL
+#define  RGBORDER RGB
+#define NUM_LEDS 408                                // how long our strip is
 #define DATA_PIN 17                                  // 2811 data pin
 #define CHIP WS2812
 //#define SNOOZE
@@ -91,7 +118,7 @@
 #define USERADIO
 #define NANO
 #define  RGBORDER RGB
-#define NUM_LEDS 150                                // how long our strip is
+#define NUM_LEDS 144                                // how long our strip is
 #define DATA_PIN 7                                  // 2811 data pin
 #define CHIP WS2812
 #endif
@@ -211,6 +238,21 @@ void batteryTester(int delta)
 //------------------------------------------------------------------------
 void checkButtons(int delta)
 {
+#ifdef USEACCEL
+  // test that the wand is at about a 45 degree angle with the button at the bottom
+  // and its not moving around too much
+  float ax = mpu6050.getAccX();
+  float ay = mpu6050.getAccY();         // force along the axis
+  float az = mpu6050.getAccZ();
+  float ny = sqrt((ax * ax) + (az * az)); // force not along the axis
+  float ft = sqrt((ax * ax) + (ay * ay) + (az * az));   // total force, should be around 1 G +- .5
+  float df = ay + ny;                   // for 45 degree up, these should about cancle each other
+  if ((df < -0.5) || (df > 0.5)) // 45 degree angle up
+    return;
+  if ((ft < 0.5) || (ft > 1.5)) // not moving too much
+    return;
+#endif
+
   if (digitalRead(PIN_PUSHBUTTON) == 0)
   {
     if (buttonState == BUTTONUP)
@@ -474,17 +516,39 @@ void strongmanUpdate(int delta)
 #ifdef SHOWDEBUG
 void showDebug()
 {
-  // showing transmit/receive events
-  ShowRadio(leds);
-  // looking for LEADER/FOLLOWER mode
-  for (int i = 5; i < 10; i++)
+  /*
+    // showing transmit/receive events
+    ShowRadio(leds);
+    // looking for LEADER/FOLLOWER mode
+    for (int i = 5; i < 10; i++)
     leds[i] = (muteTimer > 0) ? CRGB(255, 255, 0) : CRGB(0, 0, 255);
 
-  // looking for reboot
-  for (int i = 10; i < 15; i++)
+    // looking for reboot
+    for (int i = 10; i < 15; i++)
     leds[i] = gotone ? CRGB(0, 255, 255) : CRGB(255, 0, 0);
+  */
+
+  float ax = mpu6050.getAccX();
+  float ay = mpu6050.getAccY();
+  float az = mpu6050.getAccZ();
+  float ny = sqrt((ax * ax) + (az * az));
+  float ft = sqrt((ax * ax) + (ay * ay) + (az * az));
+  float df = ay + ny;
+  Serial.print(df);
+  Serial.print(",");
+  Serial.print(ft);
+  Serial.println("");
+
+
 }
 #endif
+
+void dark()
+{
+  for (int i = 0; i < NUM_LEDS; i++)
+    leds[i] = 0;
+}
+
 
 void loop()
 {
@@ -526,8 +590,9 @@ void loop()
 #endif
         break;
       case 1:
-        SyncedAnims( current, leds, NUM_LEDS);
-        ShowRadio(  leds);
+        SyncedAnims( current, leds, NUM_LEDS);    // run animations so it can still be master
+        dark();                                   // blank the display to save power
+        ShowRadio(  leds);                        // show radio pulse
         break;
 #ifdef USEACCEL
       case 2:

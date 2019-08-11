@@ -28,26 +28,57 @@ int clamp(int a, int b, int c)
 }
 
 void DizzyGame( uint8_t *state, CRGB *display, int size) {
-#ifdef USEACCEL  
+#ifdef USEACCEL
+  static char *valid = "0001010100111110";
+  static int quads[4];
   static float lax, laz;
   static float laa;
   static int level = 5;
   float ax = mpu6050.getAccX();
   float ay = mpu6050.getAccY();
   float az = mpu6050.getAccZ();
-  float tz = (ax * ax)  + (az * az);
-  float dx = lax - ax;
-  float dz = laz - az;
-  lax = ax;
-  laz = az;
-  float dp = sqrt(dx * dx + dz * dz);
+  /*
+    Serial.print(ax);
+    Serial.print(",");
+    Serial.print(ay);
+    Serial.print(",");
+    Serial.print(az);
+    Serial.println("");
+  */
+  float plane = sqrt((ax * ax) + (az * az));
+  float total = sqrt((ax * ax) + (ay * ay));
+
+  int quad = 0;
+  if (ax > 0)
+    quad += 1;
+  if (az > 0)
+    quad += 2;
+  int maxquad = 0;
+  quads[quad] = 0;
   int delta = 1;
-  if (ay > 1.2)
+  int mask = 0;
+  for (int i = 0; i < 4; i++)
+  {
+    quads[i]++;
+    mask = mask << 1;
+    if (quads[i] > 50)
+    {
+      quads[i] = 50;
+      mask += 1;
+    }
+  }
+  if (ay > 2.0)
     delta = -1;
-  if (ay < -1.2)
+  if (ay < -2.0)
     delta = -1;
-  if (tz < 0.1)
+  if (valid[mask] == '0')
     delta = -1;
+  if (total < 1.2)
+    delta = -1;
+  if (plane < 0.2)
+    delta = -1;
+
+  bool maxed = (level + delta) > 400;
   level = clamp(level + delta, 5, 400);
 
   int scaled = (level * size) / 100;
@@ -56,6 +87,11 @@ void DizzyGame( uint8_t *state, CRGB *display, int size) {
 
   CRGB low = pickPass(base);
   CRGB hi = pickPass(base + 1);
+  if (maxed)
+  {
+    low = CRGB(0, 255, 255);
+    hi = CRGB(0, 255, 255);
+  }
 
   for (int i = 0; i < size; i++)
   {
@@ -64,7 +100,7 @@ void DizzyGame( uint8_t *state, CRGB *display, int size) {
     else
       display[i] = hi;
   }
-  #endif
+#endif
 }
 
 

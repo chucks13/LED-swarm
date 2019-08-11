@@ -203,10 +203,17 @@ void drawSparkles( uint8_t *state, CRGB *display, int size, int frameNumber)
 
 void drawStrongman( uint8_t *state, CRGB *display, int size, int frameNumber)
 {
+  static int pulse = 0;
+  static int last = 0;
+  static int highwater = 0;
   int level = getData(state, 0);
   int high = getData(state, 1);
   int hightime = getData(state, 2);
   int highest = getData(state, 3);
+  if (level > last)
+    if (pulse == 0)
+      pulse = 1;
+  last = level;
   if (level > high)
   {
     high = level;
@@ -222,13 +229,38 @@ void drawStrongman( uint8_t *state, CRGB *display, int size, int frameNumber)
     if (high < level)
       high = level;
   }
+  if (level > highwater)
+    highwater = level;
+  else
+    highwater--;
+  if (highwater < 0)
+    highwater = 0;
+  if (pulse > 0)
+    pulse += 8;
+  if ((pulse + 10 > highwater))
+    pulse = 0;
   for (int i = 0; i < size; i++)
   {
     int x = (i * 144) / size;         // was originally scaled for 144
-    if (x < level)
-      display[i] = CRGB(64, 0, 0);
+    if (x < highwater)
+    {
+      if ((pulse > 0) && (x > pulse) && (x < (pulse + 10)))
+        display[i] = CRGB(128, 128, 128);
+      else
+      {
+        if (random(256) < 2)
+          display[i] = CRGB(0, 0, 64);
+        else
+          display[i] = CRGB(64, 0, 0);
+      }
+    }
     else
-      display[i] = CRGB(0, 0, 0);
+    {
+      if (random(256) < 2)
+        display[i] = CRGB(128, 128, 128);
+      else
+        display[i] = CRGB(0, 0, 0);
+    }
   }
   display[(high * size) / 144] = CRGB(255, 255, 0);
   display[(highest * size) / 144] = CRGB(0, 255, 0);
